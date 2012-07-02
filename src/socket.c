@@ -28,6 +28,7 @@ static const char RCSid[] = "$Id: socket.c,v 35004.288 2007/01/13 23:12:39 kkeys
 #include <sys/file.h>	/* for FNONBLOCK on SVR4, hpux, ... */
 #include <sys/socket.h>
 #include <signal.h>	/* for killing resolver child process */
+#include "msdp.h"
 
 #if HAVE_SSL
 # if HAVE_GNUTLS_OPENSSL_H
@@ -438,8 +439,14 @@ STATIC_BUFFER(telbuf);
 #define TN_NEW_ENVIRON	((char)39)	/* 1572 - (not used) */
 #define TN_CHARSET	((char)42)	/* 2066 - (not used) */
 /* 85 & 86 are not standard.  See http://www.randomly.org/projects/MCCP/ */
+#define TN_MSDP		((char)69)  /* http://tintin.sourceforge.net/msdp/ */
+#define TN_MSSP		((char)70)  /* http://tintin.sourceforge.net/mssp/ */
 #define TN_COMPRESS	((char)85)	/* MCCP v1 */
 #define TN_COMPRESS2	((char)86)	/* MCCP v2 */
+#define TN_MSP		((char)90)  /* MSP */
+#define TN_MXP		((char)91)  /* MXP */
+#define TN_ATCP     ((char)200) 
+#define TN_GMCP     ((char)201) 
 
 #define UCHAR		unsigned char
 
@@ -473,6 +480,7 @@ const int feature_MCCPv1 = HAVE_MCCP - 0;
 const int feature_MCCPv2 = HAVE_MCCP - 0;
 const int feature_ssl = HAVE_SSL - 0;
 const int feature_SOCKS = SOCKS - 0;
+const int feature_MSDP = 1;
 
 static const char *CONFAIL_fmt = "%% Connection to %s failed: %s: %s";
 static const char *ICONFAIL_fmt = "%% Intermediate connection to %s failed: %s: %s";
@@ -612,8 +620,14 @@ void init_sock(void)
     telnet_label[(UCHAR)TN_AUTH]	= "AUTHENTICATION";
     telnet_label[(UCHAR)TN_NEW_ENVIRON]	= "NEW-ENVIRON";
     telnet_label[(UCHAR)TN_CHARSET]	= "CHARSET";
+    telnet_label[(UCHAR)TN_MSDP] = "MSDP";
+    telnet_label[(UCHAR)TN_MSSP] = "MSSP";
     telnet_label[(UCHAR)TN_COMPRESS]	= "COMPRESS";
     telnet_label[(UCHAR)TN_COMPRESS2]	= "COMPRESS2";
+	telnet_label[(UCHAR)TN_MSP] = "MSP";
+	telnet_label[(UCHAR)TN_MXP] = "MXP";
+	telnet_label[(UCHAR)TN_ATCP] = "ATCP";
+	telnet_label[(UCHAR)TN_GMCP] = "GMCP";
     telnet_label[(UCHAR)TN_EOR]		= "EOR";
     telnet_label[(UCHAR)TN_SE]		= "SE";
     telnet_label[(UCHAR)TN_NOP]		= "NOP";
@@ -2792,6 +2806,62 @@ static void test_prompt(void)
     }
 }
 
+enum msdp_state {
+	MSDP_WAIT_VAR,
+	MSDP_WAIT_VAR_DATA,
+	MSDP_WAIT_VAL_DATA,
+};
+
+// returns the end
+int msdp_debug(String * buffer, const char * pstart, int olen) { 
+	int state;
+	int len=olen;
+	const char * p=pstart;
+	/*
+	switch(*p) {
+		case TN_MSSP:
+			Stringcat(buffer, "MSSP ");
+			break;
+		case TN_MSDP:
+			Stringcat(buffer, "MSDP ");
+			break;
+		default:
+			Sappendf(buffer, "Unknown %02x ", (unsigned char) *p);
+			break;
+	}
+	*p++;
+	len--;
+	*/
+	for (state = 0; len>=0; len--, p++) {
+		switch(*p) {
+			case MSDP_VAR:
+				Stringcat(buffer, " VAR ");
+				break;
+			case MSDP_VAL:
+				Stringcat(buffer, " VAL ");
+				break;
+			case MSDP_TABLE_OPEN:
+				Stringcat(buffer, " [");
+				break;
+			case MSDP_TABLE_CLOSE:
+				Stringcat(buffer, " ]");
+				break;
+			case MSDP_ARRAY_OPEN:
+				Stringcat(buffer, " {");
+				break;
+			case MSDP_ARRAY_CLOSE:
+				Stringcat(buffer, " }");
+				break;
+			case TN_IAC:
+				return p-pstart;
+			default:
+				Stringadd(buffer, *p);
+				break;
+		}
+	}
+	return p-pstart;
+}
+
 static void telnet_subnegotiation(void)
 {
     char *p;
@@ -2830,6 +2900,10 @@ static void telnet_subnegotiation(void)
 	    break;
 	}
 	xsock->flags |= SOCKCOMPRESS;
+	break;
+	case TN_MSSP:
+	case TN_MSDP:
+		// p=recv_msdp_sb(p, xsock->subbuffer->len-2);
 	break;
     default:
 	no_reply("unknown option");
@@ -3139,13 +3213,19 @@ static int handle_socket_input(const char *simbuffer, int simlen)
 #endif
                     rawchar == TN_ECHO ||
                     rawchar == TN_SEND_EOR ||
-                    rawchar == TN_BINARY)              /* accept any of these */
+                    rawchar == TN_BINARY ||
+					rawchar == TN_MSDP ||
+				    rawchar == TN_MSSP)              /* accept any of these */
+
                 {
                     SET_TELOPT(xsock, them, rawchar);  /* set state */
                     if (TELOPT(xsock, them_tog, rawchar)) {/* we requested it */
                         CLR_TELOPT(xsock, them_tog, rawchar);  /* done */
                     } else {
                         DO(rawchar);  /* acknowledge their request */
+						if (rawchar == TN_MSDP) {
+							// do something here 
+						}
                     }
                 } else {
                     DONT(rawchar);    /* refuse their request */
@@ -3372,6 +3452,7 @@ static void telnet_debug(const char *dir, const char *str, int len)
 {
     String *buffer;
     int state;
+	int msdp_sb=0;
 
     if (telopt) {
         buffer = Stringnew(NULL, 0, 0);
@@ -3379,7 +3460,7 @@ static void telnet_debug(const char *dir, const char *str, int len)
 	if (len == 0)
 	    Stringcat(buffer, str);
 	else {
-	    for (state = 0; len; len--, str++) {
+	    for (state = 0; len>=0; len--, str++) {
 		if (*str == TN_IAC || state == TN_IAC || state == TN_SB ||
 		    state == TN_WILL || state == TN_WONT ||
 		    state == TN_DO || state == TN_DONT)
@@ -3387,7 +3468,15 @@ static void telnet_debug(const char *dir, const char *str, int len)
 		    if (telnet_label[(UCHAR)*str])
 			Sappendf(buffer, " %s", telnet_label[(UCHAR)*str]);
 		    else
-			Sappendf(buffer, " %d", (unsigned int)*str);
+			Sappendf(buffer, " %u", (unsigned char)*str);
+			if (state==TN_SB && (*str == TN_MSSP || *str == TN_MSDP)) {
+				int tmp=msdp_debug(buffer, str+1, len-1);
+				str += tmp;
+				len -= tmp;
+				if (len<0)
+					len=0;
+				state = 0;
+			}
 		    state = *str;
 		} else if (state == TN_TTYPE) {
 		    if (*str == (char)0) {
@@ -3546,4 +3635,3 @@ int nactive(const char *worldname)
         return 0;
     return w->screen->active ? w->screen->nnew : 0;
 }
-
