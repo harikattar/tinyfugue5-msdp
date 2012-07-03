@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "pattern.h"
 #ifndef S_IROTH
 # define S_IWUSR 00200
 # define S_IRUSR 00400
