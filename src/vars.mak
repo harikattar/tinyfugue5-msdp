@@ -19,7 +19,8 @@
 TFVER=50b8
 
 SOURCE = attr.c command.c dstring.c expand.c expr.c help.c history.c \
-  keyboard.c macro.c main.c malloc.c msdp.c output.c pattern.c process.c \
-  search.c signals.c socket.c tfio.c tty.c util.c variable.c world.c
+  keyboard.c macro.c main.c malloc.c msdp.c msdp-tok.c output.c pattern.c \
+  process.c search.c signals.c socket.c tfio.c tty.c util.c variable.c world.c
 
 OBJS = $(subst .c,.$O,$(SOURCE)) $(OTHER_OBJS)
+

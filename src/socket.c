@@ -2490,6 +2490,26 @@ static int transmit(const char *str, unsigned int numtowrite)
     return 1;
 }
 
+/* Sends the buffer without escaping control characters */
+
+int send_raw(conString * buf, const char * world) {
+	int ret=0;
+    Sock *old_xsock = xsock;
+
+    xsock = (!world || !*world) ? xsock : find_sock(world);
+
+    if (!xsock ||
+	(xsock->constate != SS_CONNECTED && !(xsock->flags & SOCKECHO)))
+    {
+        eprintf("Not connected.");
+        return 0;
+    }
+	telnet_debug("send", buf->data, buf->len);
+	ret=transmit(buf->data, buf->len);
+	xsock=old_xsock;
+    return ret;
+}
+
 /* send_line
  * Send a line to the server on the current socket.  If there is a prompt
  * associated with the current socket, clear it.
@@ -2812,7 +2832,7 @@ static void telnet_subnegotiation(void)
         STRING_LITERAL("TINYFUGUE"),
         STRING_LITERAL("ANSI-ATTR"),
         STRING_LITERAL("ANSI"), /* a lie, but probably has the desired effect */
-        STRING_LITERAL("UNKNOWN"),
+//        STRING_LITERAL("UNKNOWN"),
         STRING_NULL };
 
     telnet_debug("recv", xsock->subbuffer->data, xsock->subbuffer->len);
@@ -3097,7 +3117,7 @@ static int handle_socket_input(const char *simbuffer, int simlen)
                 continue;  /* avoid non-telnet processing */
 
             } else if (xsock->fsastate == TN_SB) {
-		if (xsock->subbuffer->len > 255) {
+		if (xsock->subbuffer->len > 4000) {
 		    /* It shouldn't take this long; server is broken.  Abort. */
 		    SStringcat(xsock->buffer, CS(xsock->subbuffer));
 		    Stringtrunc(xsock->subbuffer, 0);
@@ -3445,7 +3465,7 @@ static void telnet_debug(const char *dir, const char *str, int len)
     }
 }
 
-static void telnet_send(String *cmd)
+void telnet_send(String *cmd)
 {
     transmit(cmd->data, cmd->len);
     telnet_debug("sent", cmd->data, cmd->len);
