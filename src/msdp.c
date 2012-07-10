@@ -7,6 +7,7 @@
 #include "world.h"
 #include "history.h"
 #include "tfio.h"
+#include "socket.h"
 #include "msdp-tok.h"
 
 #define MSDP_VERBOSE	1
@@ -68,7 +69,7 @@ conString * msdp_encode(const char * cmd) {
 			case '=': Stringadd(buf, MSDP_VAL); state=MSDP_VAL; continue;
 			case ' ': continue; // just eat spaces?
 			default: break; // single char identifier, fallthrough
-			} 
+			}
 		}
 		if (state==MSDP_VAR)
 			Stringadd(buf, MSDP_VAR);
@@ -89,7 +90,29 @@ conString * msdp_encode(const char * cmd) {
 }
 
 
-int update_mdsp_value(const char * name, const char * value) {
+int update_msdp_value(conString * name, conString * value) {
+	int result;
+	STATIC_BUFFER(trig);
+	String * old_incoming_text;
+
+	old_incoming_text = incoming_text;
+
+	Stringcpy(trig, "MSDP ");
+	SStringocat(trig, name, 6);
+	Stringadd(trig, ' ');
+	SStringcat(trig, value);
+
+	incoming_text = trig;
+	result = find_and_run_matches(NULL, -1, &incoming_text, xworld(),
+		TRUE, 0);
+
+	incoming_text = old_incoming_text;
+
+	do_set(name->data, hash_string(name->data),
+		value, 0, 0, 0);
+
+
+	return result;
 }
 
 int recv_msdp_sb(const char *p, int olen) {
@@ -101,9 +124,11 @@ int recv_msdp_sb(const char *p, int olen) {
 	const char * pend=p+olen;
 	int ret=0;
 	int namedepth=0;
-
+	int t;
 
 	Stringcpy(test, "% MSDP recv ");
+	Stringcpy(path, "MSDP");
+	int setvalue=0;
 
 	/* start with TN_MSDP */
 	if (*p && *p == TN_MSDP) {
@@ -116,14 +141,18 @@ int recv_msdp_sb(const char *p, int olen) {
 			switch(*p) {
 			case MSDP_VAR:
 				c=p+1;
-				while(c<pend) {
-					if (*c<=MSDP_ARRAY_CLOSE || *c==TN_IAC)
-						break;
+				while(c<pend && *c>MSDP_ARRAY_CLOSE && *c!=TN_IAC)
 					c++;
+
+				if (setvalue) {
+					Sappendf(test, " Set %s to %s ", path->data,
+							value->data);
+					update_msdp_value(CS(path), CS(value));
+					setvalue=0;
 				}
-				Stringtrunc(path, namedepth);
-				if (namedepth > 0)
-					Stringcat(path, "__");
+				Stringtrunc(value, 0);
+				Stringtrunc(path, namedepth + 4);
+				Stringcat(path, "__");
 				Stringncat(path, p+1, c-p-1);
 				Stringadd(test, ' ');
 				SStringcat(test, CS(path));
@@ -134,15 +163,20 @@ int recv_msdp_sb(const char *p, int olen) {
 			case MSDP_VAL:
 				Stringcat(test, "=");
 				c=p+1;
-				while(c<pend) {
-					if (*c<6 || *c==TN_IAC)
-						break;
+				while(c<pend && *c>MSDP_ARRAY_CLOSE && *c!=TN_IAC)
 					c++;
-				}
+
 				if (c-p-1 > 0) {
-					Stringtrunc(value, namedepth);
-					Stringncpy(value, p+1, c-p-1);
-					SStringcat(test, CS(value));
+					if (!setvalue) {
+						t=0;
+						Stringncpy(value, p+1, c-p-1);
+						setvalue++;
+					} else {
+						t=value->len+1;
+						Stringadd(value, ' ');
+						Stringncat(value, p+1, c-p-1);
+					}
+					SStringocat(test, CS(value), t);
 					Stringcat(test, " ");
 				}
 				p=c;
@@ -167,6 +201,12 @@ int recv_msdp_sb(const char *p, int olen) {
 		}
 	} else {
 		ret=-1;
+	}
+	if (setvalue) {
+		Sappendf(test, " Set %s to %s ", path->data,
+				value->data);
+		update_msdp_value(CS(path), CS(value));
+		setvalue=0;
 	}
 
 	if (msdp_dbg & MSDP_VERBOSE)
