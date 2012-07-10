@@ -9,6 +9,9 @@
 #include "tfio.h"
 #include "msdp-tok.h"
 
+#define MSDP_VERBOSE	1
+#define MSDP_LOOP		2
+
 struct _msdp_commands {
 	const char * cmd;
 	int id;
@@ -32,12 +35,11 @@ struct Value *handle_msdp_command(String * args, int offset) {
 	Stringtrunc(buf, 0);
 	SStringocat(buf, CS(args), offset);
 	conString * encoded = msdp_encode(buf->data);
-//	send_raw(encoded, 0); // fixme handle world settings later
-
-	recv_msdp_sb(encoded->data+2, encoded->len-2);
-
-	// Sprintf(buf, "%d: %s", offset, args->data);
-	// tfputline(CS(buf), tfout);
+	if (msdp_dbg & MSDP_LOOP) {
+		recv_msdp_sb(encoded->data+2, encoded->len-2);
+	} else {
+		send_raw(encoded, 0); // fixme handle world settings later
+	}
 
 	return newint(0);
 }
@@ -167,8 +169,8 @@ int recv_msdp_sb(const char *p, int olen) {
 		ret=-1;
 	}
 
-	tfputline(CS(test), tfout);
+	if (msdp_dbg & MSDP_VERBOSE)
+		tfputline(CS(test), tfout);
 
 	return ret;
 }
-

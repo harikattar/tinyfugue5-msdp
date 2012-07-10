@@ -2800,7 +2800,7 @@ int msdp_debug(String * buffer, const char * pstart, int olen) {
 				Stringcat(buffer, " VAR ");
 				break;
 			case MSDP_VAL:
-				Stringcat(buffer, " VAL ");
+				Stringcat(buffer, " =");
 				break;
 			case MSDP_TABLE_OPEN:
 				Stringcat(buffer, " [");
