@@ -126,6 +126,9 @@ int recv_msdp_sb(const char *p, int olen) {
 	int namedepth=0;
 	int t;
 
+#define NPUSH(x)	do { namestack[namepos++]=namedepth; namedepth=x; } while (0)
+#define NPOP()		do { if (namepos) namedepth=namestack[--namepos]; } while (0)
+
 	Stringcpy(test, "% MSDP recv ");
 	Stringcpy(path, "MSDP");
 	int setvalue=0;
@@ -182,9 +185,13 @@ int recv_msdp_sb(const char *p, int olen) {
 				p=c;
 				break;
 			case MSDP_TABLE_OPEN:
-				Stringcat(test, " ["); p++; break;
+				Stringcat(test, " ["); p++;
+				NPUSH(path->len-4);
+				break;
 			case MSDP_TABLE_CLOSE:
-				Stringcat(test, "] "); p++; break;
+				Stringcat(test, "] "); p++;
+				NPOP();
+				break;
 			case MSDP_ARRAY_OPEN:
 				Stringcat(test, " {"); p++; break;
 			case MSDP_ARRAY_CLOSE:
