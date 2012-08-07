@@ -90,7 +90,7 @@ PREFIXDIRS:
 	test -d "$(DESTDIR)$(bindir)" || mkdir $(DESTDIR)$(bindir)
 	test -d "$(DESTDIR)$(datadir)" || mkdir $(DESTDIR)$(datadir)
 
-install_TF $(TF): tf$(X) $(BUILDERS)
+install_TF: tf$(X) $(BUILDERS)
 	-@rm -f $(DESTDIR)$(TF)
 	cp tf$(X) $(DESTDIR)$(TF)
 	chmod $(MODE) $(DESTDIR)$(TF)
