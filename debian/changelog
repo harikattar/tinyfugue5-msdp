@@ -1,3 +1,9 @@
+tf5 (5.0beta8-4+msdp1) unstable; urgency=low
+
+  * Added MSDP support.
+
+ -- harik <git@harik.welp.gs>  Mon, 06 Aug 2012 19:33:21 -0400
+
 tf5 (5.0beta8-4) unstable; urgency=low
 
   * Update debhelper compatibility level to V7.

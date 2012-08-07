@@ -10776,7 +10776,7 @@ worlds
   This would tell the rest of the world some stuff they probably don't care 
   about, namely the label your Fugue has assigned to the [1mcurrent[22;0m world and the 
   character name under which it logged on.  
-#
+#default
 
   Fugue also keeps track of a world named "default", which is just a dummy 
   world with a character name and password, and optionally a [1mmacro[22;0m file.  If a 
@@ -10784,5 +10784,64 @@ worlds
   will use the values from the default world.  
 
   See also: [1msockets[22;0m 
+
+&msdp
+&/msdp
+
+
+MSDP
+
+  [1mMSDP[22;0m, the Mud Server Data Protocol, is used to supplement the normal
+  text-mode interaction between server and client.   MSDP consists of a small
+  set of commands operating on a wide range of variables.
+
+  The syntax is /MSDP <COMMAND> =VALUE [=VALUE ...]
+
+  Example:
+
+  /msdp LIST =REPORTABLE_VARIABLES
+  /echo %MSDP__REPORTABLE_VARIABLES
+  % MSDP__REPORTABLE_VARIABLES=A B C...
+
+  MSDP responses from the server activate the MSDP trigger:  For
+  example:
+
+  /def -F -mglob -t'MSDP *' msdp_report = /echo Server set: %*
+  /msdp LIST =REPORTABLE_VARIABLES
+  Server set: MSDP REPORTABLE_VARIABLES A B C
+
+  The trigger is called [1mbefore[22;0m the variable is updated,
+  allowing you to track changes.
+
+  For instance, the following trigger:
+  /def -mglob -t'MSDP HEALTH *' msdp_health_update = \
+    /let _hchange=$[ %3 - %MSDP__HEALTH ]%;\
+    /echo Health changed: %_hchange to %3
+
+
+  The standard commands are:
+  [1mLIST, SEND, REPORT, UNREPORT, RESET[22;0m
+
+  /msdp LIST =NAME - sends a list from the server.  Suggested list names:
+  LISTS                  - Request the list of listable things
+  COMMANDS               - Request a list of commands supported by the server.
+  CONFIGURABLE_VARIABLES - Variables the client can set on the server.
+  REPORTABLE_VARIABLES   - Variables that the server can update you on change
+  REPORTED_VARIABLES     - The current list of variables the client has
+                           requested to be reported.
+  SENDABLE_VARIABLES     - All possible variables.
+
+
+  /MSDP SEND =NAME [ =NAME ... ] - Send the current value of a variable
+  
+  /MSDP REPORT =NAME [ =NAME ... ] - Send the current value, and additionally
+                                     send the value when it is updated.
+
+  /MSDP UNREPORT =NAME [ =NAME ...] - stop reporting a variable.
+  
+  /MSDP RESET =NAME [ =NAME ...] - Set the variable to it's default state.
+                       
+   Most commonly used to clear the set of REPORTABLE_VARIABLES, but there may
+   be other server-specific things to reset.
 
 &

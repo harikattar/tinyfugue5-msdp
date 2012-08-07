@@ -11,6 +11,12 @@ If you have custom code to do any of the following in older versions,
   switch, or resuming from sh or suspend); scrollback; status line
   customizations; ...
 
+5.0 beta 8+MSDP (2012-08-03)
+----------
+Negotiates MSDP with remote server.
+Added /msdp command to send MSDP frames to server
+MSDP responses cause triggers and update variables
+
 5.0 beta 8 (2007-01-14)
 ----------
 Added %max_hook to prevent infinite hook loops.
