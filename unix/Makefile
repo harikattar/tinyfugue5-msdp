@@ -36,14 +36,15 @@ unconfigure:
 	rm -f src/Makefile src/config.h
 
 clean:
-	cd ./src; rm -f *.o Makefile core* *.core config.h typescript*
-	cd ./unix; rm -f vars.mak
+	cd ./src; rm -f *.o core* *.core typescript*
 
 distclean:  clean
 	rm -f Build.log
 #	cd ./tf-lib; rm -f tf-help.idx
 	cd ./src; rm -f tf makehelp tags
 	cd ./src; rm -f tf.pixie* tf.Addrs* tf.Counts*
+	cd ./src; rm -f Makefile config.h
+	cd ./unix; rm -f vars.mak
 
 spotless cleanest veryclean:  distclean
 	cd ./src; rm -f tf.1.catman
