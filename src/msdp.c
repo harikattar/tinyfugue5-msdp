@@ -64,14 +64,20 @@ conString * msdp_encode(const char * cmd) {
 			switch(c[0]) {
 			case '[': Stringadd(buf, MSDP_TABLE_OPEN); state=MSDP_VAR; continue;
 			case ']': Stringadd(buf, MSDP_TABLE_CLOSE); state=MSDP_VAR; continue;
-			case '{': Stringadd(buf, MSDP_ARRAY_OPEN); state=MSDP_VAR; array_depth++; continue;
+			// Inside an array {}, elements are values (MSDP_VAL), not
+			// variables, per the MSDP spec.  Set state=MSDP_VAL so each
+			// element is prefixed with MSDP_VAL instead of MSDP_VAR.
+			case '{': Stringadd(buf, MSDP_ARRAY_OPEN); state=MSDP_VAL; array_depth++; continue;
 			case '}': Stringadd(buf, MSDP_ARRAY_CLOSE); state=MSDP_VAR; if (array_depth) array_depth--; continue;
 			case '=': Stringadd(buf, MSDP_VAL); state=MSDP_VAL; continue;
 			case ' ': continue; // just eat spaces?
 			default: break; // single char identifier, fallthrough
 			}
 		}
-		if (state==MSDP_VAR)
+		if (state==MSDP_VAL && array_depth)
+			// array element: prefix each with MSDP_VAL, stay in array
+			Stringadd(buf, MSDP_VAL);
+		else if (state==MSDP_VAR)
 			Stringadd(buf, MSDP_VAR);
 		else
 			state=MSDP_VAR;
