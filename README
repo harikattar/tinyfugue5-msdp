@@ -1,4 +1,8 @@
 
+This is a long-dead fork. Active development is at https://github.com/ingwarsw/tinyfugue,
+which now supports MSDP.  Thanks to Michał Lipka for reworking my changes into
+the modern codebase and I hope someone finds it useful.
+
   TinyFugue is Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 Ken Keys.
 
   PCRE regexp package is Copyright 1997-1999 University of Cambridge.
