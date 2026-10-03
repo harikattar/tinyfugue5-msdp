@@ -3162,7 +3162,7 @@ static int handle_socket_input(const char *simbuffer, int simlen)
             } else if (xsock->fsastate == TN_WILL) {
                 xsock->fsastate = '\0';
                 telnet_recv(TN_WILL, rawchar);
-                if (TELOPT(xsock, them, rawchar)) { /* already there, ignore */
+                if (TELOPT(xsock, them, rawchar) || rawchar == TN_ECHO) { /* already there, ignore */
 		    no_reply("option was already agreed on");
                     CLR_TELOPT(xsock, them_tog, rawchar);
                 } else if (
@@ -3197,7 +3197,7 @@ static int handle_socket_input(const char *simbuffer, int simlen)
             } else if (xsock->fsastate == TN_WONT) {
                 xsock->fsastate = '\0';
                 telnet_recv(TN_WONT, rawchar);
-                if (!TELOPT(xsock, them, rawchar)) { /* already there, ignore */
+                if (!TELOPT(xsock, them, rawchar) || rawchar == TN_ECHO) { /* already there, ignore */
 		    no_reply("option was already agreed on");
                     CLR_TELOPT(xsock, them_tog, rawchar);
                 } else {
